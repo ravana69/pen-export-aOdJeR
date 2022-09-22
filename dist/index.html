@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>CodePen - A Pen by Danil</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js" type="text/javascript"></script>
+
+<link rel="stylesheet" href="./style.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/prefixfree/1.0.7/prefixfree.min.js"></script>
+
+</head>
+<body>
+<!-- partial:index.partial.html -->
+<script id="fragmentShader" type="x-shader/x-fragment">
+#ifdef GL_ES
+precision mediump float;
+#endif
+
+uniform vec2 resolution;
+uniform sampler2D texture;
+
+void main() {
+  vec2 uv = gl_FragCoord.xy / resolution.xy;
+  gl_FragColor = texture2D( texture, uv );
+}
+</script>
+<script id="vertexShader" type="x-shader/x-vertex">
+attribute vec3 position;
+
+void main() {
+  gl_Position = vec4( position, 1.0 );
+}
+</script>
+<script id="surfaceVertexShader" type="x-shader/x-vertex">
+attribute vec3 position;
+attribute vec2 surfacePosAttrib;
+varying vec2 surfacePosition;
+
+void main() {
+  surfacePosition = surfacePosAttrib;
+  gl_Position = vec4( position, 1.0 );
+}
+</script>
+<script id="mengerfs" type="x-shader/x-fragment">
+precision highp float;
+
+uniform float time;
+uniform vec2 mouse;
+uniform vec2 resolution;
+
+vec2 rotate(vec2 p, float r)
+{
+  return vec2(p.x * cos(r) - p.y * sin(r), p.x * sin(r) + p.y * cos(r));
+}
+
+float fr(float t) {
+  return t < 0.0 ? ceil(t) : floor(t);
+}
+
+vec3 fr(vec3 t) {
+  return vec3(fr(t.x), fr(t.y), fr(t.z));
+}
+
+float shader(vec2 uv, vec3 e)
+{
+  float d = 1.0;
+  float n;
+  float Z = 3.0;
+  float IZ = 1.0/Z;
+
+  vec3 s = e;
+  vec3 r = vec3(1.0, uv.x, uv.y);
+  vec3 t = e;
+
+  vec3 g = r;
+  g.zx = rotate(g.zx, time * 0.2);
+  vec3 ir = 1.0 / r;
+  vec3 iv;
+  vec3 zero = vec3(0.0);
+
+  for(int i = 16; i >= 0;i--) {
+    if (d <= 0.0001) {
+      break;
+    }
+    d *= IZ;
+ 
+    iv = fr(t);
+    t = t - iv;
+    t.xy *= Z;
+    t.z = (t.z < 0.0) ? (1.0 + t.z) : t.z;
+    t.z *= Z;
+    iv = fr(t);
+    
+    float j = iv.x * iv.x + iv.y * iv.y + iv.z * iv.z;
+    j = mod(j, 4.0);
+    if (j >= 2.0) {
+      vec3 f = max(sign(r), zero);
+      t = (f - (t - iv)) * ir;
+      n = min(min(t.x, t.y), t.z);
+      e += r * (n * d + 0.001);
+      t = e;
+      d = 1.0;
+    }
+  }
+  e -= s;
+  
+  return 1.0 - exp(-length(e));
+}
+
+
+void main()
+{
+  float acc = 0.1;
+
+  vec2 uv = gl_FragCoord.xy;
+
+  uv /= resolution;
+  uv *= 2.0;
+  uv -= vec2(1.0);
+  uv.x *= resolution.x / resolution.y;
+
+  uv.x = abs(uv.x) < 0.001 ? 0.001 : uv.x;
+  uv.y = abs(uv.y) < 0.001 ? 0.001 : uv.y;
+  
+  float t = time * 0.5;
+  float ex = 0.5 + cos(t * 0.5) * acc;
+  float ey = 0.5 + cos(t * 0.47) * acc;
+  float ez = -t * 0.3 + sin(t * 0.3 - 0.01);
+  float c = shader(uv, vec3(ex, ey, ez));
+
+  gl_FragColor = vec4(0, c, 0, 1.0);
+}
+</script>
+<canvas id="menger"></canvas>
+  <script>
+    window.addEventListener('DOMContentLoaded', function(){
+    initGLSLCode(
+	document.getElementById('menger'),
+	document.getElementById('mengerfs').textContent
+    );
+});
+  </script>
+<!-- partial -->
+  <script src='//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.3/jquery.min.js'></script><script  src="./script.js"></script>
+
+</body>
+</html>
